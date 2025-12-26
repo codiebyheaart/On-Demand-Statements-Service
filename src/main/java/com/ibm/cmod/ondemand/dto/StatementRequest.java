@@ -43,7 +43,7 @@ public class StatementRequest {
         return statementDate;
     }
 
-    public void setStatementDate(String statementDate) {
+    public void setStatementDate(LocalDate statementDate) {
         this.statementDate = statementDate;
     }
 

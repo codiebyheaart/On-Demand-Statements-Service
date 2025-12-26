@@ -1,0 +1,79 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ondemand-statements-service
+  
+  # H2 Database Configuration
+  datasource:
+    url: jdbc:h2:mem:statementsdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+  
+  # H2 Console (for debugging)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  # Flyway Migration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+# Application Configuration
+app:
+  storage:
+    location: ./storage/afp-files
+  
+  odwek:
+    enabled: true
+    mock: true
+    simulation:
+      min-delay-ms: 100
+      max-delay-ms: 500
+  
+  batch:
+    ingestion:
+      cron: "0 0 2 * * ?"  # Daily at 2 AM
+      enabled: true
+      staging-directory: ./storage/staging
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.ibm.cmod.ondemand: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: ./logs/application.log
+    max-size: 10MB
+    max-history: 30
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

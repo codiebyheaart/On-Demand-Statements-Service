@@ -1,0 +1,316 @@
+{
+  "info": {
+    "name": "On-Demand Statements API",
+    "description": "Complete API collection for On-Demand Statements Service with ODWEK integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements", "health"]
+        }
+      }
+    },
+    {
+      "name": "Create Statement",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Response has id field\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('id');",
+              "    pm.environment.set(\"statement_id\", jsonData.id);",
+              "});",
+              "",
+              "pm.test(\"Status is AVAILABLE\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('AVAILABLE');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"CUST-12345\",\n  \"statementDate\": \"2024-12-24\",\n  \"documentType\": \"MONTHLY_STATEMENT\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/statements",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements"]
+        }
+      }
+    },
+    {
+      "name": "Get Statement by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has all fields\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('id');",
+              "    pm.expect(jsonData).to.have.property('customerId');",
+              "    pm.expect(jsonData).to.have.property('downloadUrl');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements/{{statement_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements", "{{statement_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Statements by Customer ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response is an array\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements?customerId=CUST-12345",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements"],
+          "query": [
+            {
+              "key": "customerId",
+              "value": "CUST-12345"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get All Statements",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements"]
+        }
+      }
+    },
+    {
+      "name": "Update Statement",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"CUST-54321\",\n  \"statementDate\": \"2024-12-25\",\n  \"documentType\": \"QUARTERLY_STATEMENT\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/statements/{{statement_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements", "{{statement_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Download Statement PDF",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements/{{statement_id}}/download",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements", "{{statement_id}}", "download"]
+        }
+      }
+    },
+    {
+      "name": "Trigger Batch Ingestion",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Report has processed statements\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.totalProcessed).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements/ingest?date=2024-12-24",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements", "ingest"],
+          "query": [
+            {
+              "key": "date",
+              "value": "2024-12-24"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Delete Statement",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 204\", function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements/{{statement_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements", "{{statement_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Validation Test - Future Date",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"CUST-12345\",\n  \"statementDate\": \"2025-12-31\",\n  \"documentType\": \"MONTHLY_STATEMENT\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/statements",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements"]
+        }
+      }
+    },
+    {
+      "name": "Error Test - Invalid ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 404\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/statements/invalid-uuid-12345",
+          "host": ["{{base_url}}"],
+          "path": ["api", "statements", "invalid-uuid-12345"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "statement_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

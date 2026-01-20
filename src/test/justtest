@@ -1,5 +1,6 @@
 @Test
 void testIngestReportToFolder_WithValidData_IngestsSuccessfully() throws Exception {
+
     // Arrange
     String portal = "testPortal";
     String clientID = "client123";
@@ -8,45 +9,55 @@ void testIngestReportToFolder_WithValidData_IngestsSuccessfully() throws Excepti
     String applicationGroup = "TestGroup";
     String application = "TestApp";
     String[] values = new String[]{"value1", "value2"};
+
     Hashtable<String, String> hashValues = new Hashtable<>();
     hashValues.put("key1", "value1");
-    
+
     // Setup pool behavior
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
-    doNothing().when(mockAbstractODServer).addReportToFolder(
-            anyString(), any(byte[].class), anyString(), anyString(), any(Hashtable.class)
-    );
-    
-    try (MockedStatic<CMODConnectionManager> mockedStatic = Mockito.mockStatic(CMODConnectionManager.class)) {
-        // Mock getInstance() to return a mock that has getPoolmap()
+
+    when(mockAbstractODServer.addReportToFolder(
+            anyString(),
+            any(byte[].class),
+            anyString(),
+            anyString(),
+            any(Hashtable.class)
+    )).thenReturn("SUCCESS");
+
+    //  ONLY IMPORTANT ADDITION: TDTransform static mock
+    try (
+            MockedStatic<TDTransform> tdMock =
+                    Mockito.mockStatic(TDTransform.class);
+            MockedStatic<CMODConnectionManager> mockedStatic =
+                    Mockito.mockStatic(CMODConnectionManager.class)
+    ) {
+
+        // Prevent CMODConnectionManager static init crash
+        tdMock.when(TDTransform::getAllClientList)
+              .thenReturn(Collections.emptyList());
+
         mockedStatic.when(() -> CMODConnectionManager.getInstance())
-                    .thenAnswer(invocation -> {
-                        CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class, RETURNS_DEEP_STUBS);
-                        Map<String, ODServerPool> poolMap = new HashMap<>();
-                        poolMap.put(portal, mockPool);
-                        when(fakeMgr.getPoolmap()).thenReturn(poolMap);
-                        return fakeMgr;
-                    });
-        
-        // Act & Assert
-        ODFailureException exception = assertThrows(ODFailureException.class, () -> {
+                .thenAnswer(invocation -> {
+                    CMODConnectionManager fakeMgr =
+                            mock(CMODConnectionManager.class, RETURNS_DEEP_STUBS);
+                    Map<String, ODServerPool> poolMap = new HashMap<>();
+                    poolMap.put(portal, mockPool);
+                    when(fakeMgr.getPoolmap()).thenReturn(poolMap);
+                    return fakeMgr;
+                });
+
+        // Act & Assert (SUCCESS path)
+        assertDoesNotThrow(() -> {
             odServiceNative.ingestReportToFolder(
-                    portal, clientID, folderName, docContent,
-                    applicationGroup, application, values, hashValues
+                    portal,
+                    clientID,
+                    folderName,
+                    docContent,
+                    applicationGroup,
+                    application,
+                    values,
+                    hashValues
             );
         });
-        
-        assertNotNull(exception.getMessage());
-        verify(mockPool).borrowObject();
-        verify(mockPool).returnObject(mockAbstractODServer);
-    }
-}
 
-
-when(mockAbstractODServer.addReportToFolder(
-        anyString(),
-        any(byte[].class),
-        anyString(),
-        anyString(),
-        any(Hashtable.class)
-)).thenReturn("SUCCESS");
+        v

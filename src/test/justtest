@@ -60,4 +60,42 @@ void testIngestReportToFolder_WithValidData_IngestsSuccessfully() throws Excepti
             );
         });
 
-        v
+
+
+
+    try (
+        MockedStatic<TDTransform> tdMock =
+                Mockito.mockStatic(TDTransform.class);
+        MockedStatic<CMODConnectionManager> mockedStatic =
+                Mockito.mockStatic(CMODConnectionManager.class)
+) {
+
+    tdMock.when(TDTransform::getallClientList)
+          .thenReturn(Collections.emptyList());
+
+    mockedStatic.when(CMODConnectionManager::getInstance)
+            .thenReturn(fakeMgr);
+
+    when(fakeMgr.getODServerPool(
+            anyString(),
+            anyString(),
+            anyString()
+    )).thenReturn(mockPool);
+
+    assertDoesNotThrow(() -> {
+        odServiceNative.ingestReportToFolder(
+                portal,
+                clientID,
+                folderName,
+                docContent,
+                applicationGroup,
+                application,
+                values,
+                hashValues
+        );
+    });
+
+    verify(mockPool).borrowObject();
+    verify(mockPool).returnObject(mockAbstractODServer);
+}
+

@@ -41,3 +41,12 @@ void testIngestReportToFolder_WithValidData_IngestsSuccessfully() throws Excepti
         verify(mockPool).returnObject(mockAbstractODServer);
     }
 }
+
+
+when(mockAbstractODServer.addReportToFolder(
+        anyString(),
+        any(byte[].class),
+        anyString(),
+        anyString(),
+        any(Hashtable.class)
+)).thenReturn("SUCCESS");

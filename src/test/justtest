@@ -11,21 +11,24 @@ void testIngestReportToFolder_WithValidData_IngestsSuccessfully() throws Excepti
     Hashtable<String, String> hashValues = new Hashtable<>();
     hashValues.put("key1", "value1");
     
-    // Create mocks
-    CMODConnectionManager mockManager = mock(CMODConnectionManager.class);
-    Map<String, ODServerPool> poolMap = new HashMap<>();
-    poolMap.put(portal, mockPool);
-    
+    // Setup pool behavior
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
     doNothing().when(mockAbstractODServer).addReportToFolder(
             anyString(), any(byte[].class), anyString(), anyString(), any(Hashtable.class)
     );
     
     try (MockedStatic<CMODConnectionManager> mockedStatic = Mockito.mockStatic(CMODConnectionManager.class)) {
-        mockedStatic.when(() -> CMODConnectionManager.getInstance()).thenReturn(mockManager);
-        when(mockManager.getPoolmap()).thenReturn(poolMap);
+        // Mock getInstance() to return a mock that has getPoolmap()
+        mockedStatic.when(() -> CMODConnectionManager.getInstance())
+                    .thenAnswer(invocation -> {
+                        CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class, RETURNS_DEEP_STUBS);
+                        Map<String, ODServerPool> poolMap = new HashMap<>();
+                        poolMap.put(portal, mockPool);
+                        when(fakeMgr.getPoolmap()).thenReturn(poolMap);
+                        return fakeMgr;
+                    });
         
-        // Act & Assert - will throw because msg is null (addReportToFolder returns void)
+        // Act & Assert
         ODFailureException exception = assertThrows(ODFailureException.class, () -> {
             odServiceNative.ingestReportToFolder(
                     portal, clientID, folderName, docContent,

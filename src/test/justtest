@@ -1,65 +1,29 @@
 @Test
-void testIngestReportToFolder_WithValidData_IngestsSuccessfully() throws Exception {
+void testIngestReportToFolder_WhenAddReturnsNull_ThrowsException() throws Exception {
 
-    // Arrange
-    String portal = "testPortal";
-    String clientID = "client123";
-    String folderName = "TestFolder";
-    byte[] docContent = "Test Document Content".getBytes();
-    String applicationGroup = "TestGroup";
-    String application = "TestApp";
-    String[] values = new String[]{"value1", "value2"};
-
-    Hashtable<String, String> hashValues = new Hashtable<>();
-    hashValues.put("key1", "value1");
-
-    // Setup pool behavior
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
+    when(mockAbstractODServer.addReportToFolder(any(), any(), any(), any(), any()))
+            .thenReturn(null);
 
-    when(mockAbstractODServer.addReportToFolder(
-            anyString(),
-            any(byte[].class),
-            anyString(),
-            anyString(),
-            any(Hashtable.class)
-    )).thenReturn("SUCCESS");
-
-    //  ADD THIS LINE (missing earlier)
     CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
 
-    try (
-            MockedStatic<TDTransform> tdMock =
-                    Mockito.mockStatic(TDTransform.class);
-            MockedStatic<CMODConnectionManager> mockedStatic =
-                    Mockito.mockStatic(CMODConnectionManager.class)
-    ) {
-
-        tdMock.when(TDTransform::getallClientList)
-              .thenReturn(Collections.emptyList());
+    try (MockedStatic<CMODConnectionManager> mockedStatic =
+            Mockito.mockStatic(CMODConnectionManager.class)) {
 
         mockedStatic.when(CMODConnectionManager::getInstance)
                 .thenReturn(fakeMgr);
 
-        when(fakeMgr.getODServerPool(
-                anyString(),
-                anyString(),
-                anyString()
-        )).thenReturn(mockPool);
+        when(fakeMgr.getODServerPool(any(), any(), any()))
+                .thenReturn(mockPool);
 
-        assertDoesNotThrow(() -> {
-            odServiceNative.ingestReportToFolder(
-                    portal,
-                    clientID,
-                    folderName,
-                    docContent,
-                    applicationGroup,
-                    application,
-                    values,
-                    hashValues
-            );
-        });
+        assertThrows(ODFailureException.class, () ->
+                odServiceNative.ingestReportToFolder(
+                        "testPortal", "client", "folder",
+                        "Test".getBytes(), "group", "app",
+                        new String[]{}, new Hashtable<>()
+                )
+        );
 
-        verify(mockPool).borrowObject();
         verify(mockPool).returnObject(mockAbstractODServer);
     }
 }

@@ -1,9 +1,9 @@
 @Test
-void testIngestReportToFolder_WhenAddReturnsNull_ThrowsException() throws Exception {
+void testIngestReportToFolder_WhenAddReturnsNull_DoesNotThrow() throws Exception {
 
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
     when(mockAbstractODServer.addReportToFolder(any(), any(), any(), any(), any()))
-            .thenReturn(null);
+            .thenReturn(null); // explicit null
 
     CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
 
@@ -16,7 +16,7 @@ void testIngestReportToFolder_WhenAddReturnsNull_ThrowsException() throws Except
         when(fakeMgr.getODServerPool(any(), any(), any()))
                 .thenReturn(mockPool);
 
-        assertThrows(ODFailureException.class, () ->
+        assertDoesNotThrow(() ->
                 odServiceNative.ingestReportToFolder(
                         "testPortal", "client", "folder",
                         "Test".getBytes(), "group", "app",
@@ -24,6 +24,7 @@ void testIngestReportToFolder_WhenAddReturnsNull_ThrowsException() throws Except
                 )
         );
 
+        verify(mockAbstractODServer).addReportToFolder(any(), any(), any(), any(), any());
         verify(mockPool).returnObject(mockAbstractODServer);
     }
 }

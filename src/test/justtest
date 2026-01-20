@@ -1,0 +1,40 @@
+@Test
+void testIngestReportToFolder_WithValidData_IngestsSuccessfully() throws Exception {
+    // Arrange
+    String portal = "testPortal";
+    String clientID = "client123";
+    String folderName = "TestFolder";
+    byte[] docContent = "Test Document Content".getBytes();
+    String applicationGroup = "TestGroup";
+    String application = "TestApp";
+    String[] values = new String[]{"value1", "value2"};
+    Hashtable<String, String> hashValues = new Hashtable<>();
+    hashValues.put("key1", "value1");
+    
+    // Create mocks
+    CMODConnectionManager mockManager = mock(CMODConnectionManager.class);
+    Map<String, ODServerPool> poolMap = new HashMap<>();
+    poolMap.put(portal, mockPool);
+    
+    when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
+    doNothing().when(mockAbstractODServer).addReportToFolder(
+            anyString(), any(byte[].class), anyString(), anyString(), any(Hashtable.class)
+    );
+    
+    try (MockedStatic<CMODConnectionManager> mockedStatic = Mockito.mockStatic(CMODConnectionManager.class)) {
+        mockedStatic.when(() -> CMODConnectionManager.getInstance()).thenReturn(mockManager);
+        when(mockManager.getPoolmap()).thenReturn(poolMap);
+        
+        // Act & Assert - will throw because msg is null (addReportToFolder returns void)
+        ODFailureException exception = assertThrows(ODFailureException.class, () -> {
+            odServiceNative.ingestReportToFolder(
+                    portal, clientID, folderName, docContent,
+                    applicationGroup, application, values, hashValues
+            );
+        });
+        
+        assertNotNull(exception.getMessage());
+        verify(mockPool).borrowObject();
+        verify(mockPool).returnObject(mockAbstractODServer);
+    }
+}

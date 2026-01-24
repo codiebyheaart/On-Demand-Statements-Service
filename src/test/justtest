@@ -1,14 +1,15 @@
 @Test
-void testIngestReportToFolder_WhenExceptionOccurs_ReturnsToPool() {
+void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws Exception {
 
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
-    when(mockAbstractODServer.addReportToFolder(any(), any(), any(), any(), any()))
+    when(mockAbstractODServer.addReportToFolder(any(), any(byte[].class), any(), any(), any()))
         .thenThrow(new RuntimeException("DB error"));
 
     try (MockedStatic<CMODConnectionManager> mockedStatic =
              Mockito.mockStatic(CMODConnectionManager.class)) {
 
         CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
+
         mockedStatic.when(CMODConnectionManager::getInstance)
             .thenReturn(fakeMgr);
 
@@ -18,9 +19,14 @@ void testIngestReportToFolder_WhenExceptionOccurs_ReturnsToPool() {
 
         assertThrows(ODFailureException.class, () ->
             odServiceNative.ingestReportToFolder(
-                "testPortal", "client", "folder",
-                "Test".getBytes(), "group", "app",
-                new HashMap<>(), new Hashtable<>()
+                "testPortal",
+                "client",
+                "folder",
+                "Test".getBytes(),
+                "group",
+                "app",
+                new HashMap<>(),
+                new Hashtable<>()
             )
         );
 

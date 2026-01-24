@@ -1,30 +1,40 @@
-@Test
 void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws Exception {
-
+    
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
-    when(mockAbstractODServer.addReportToFolder(any(), any(), any(), any(), any()))
+    when(mockAbstractODServer.addReportToFolder(any(), any(byte[].class), any(), any(), any()))
             .thenThrow(new RuntimeException("DB error"));
-
-    CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
-
-    try (MockedStatic<CMODConnectionManager> mockedStatic =
-            Mockito.mockStatic(CMODConnectionManager.class)) {
-
-        mockedStatic.when(CMODConnectionManager::getInstance)
-                .thenReturn(fakeMgr);
-
-        when(fakeMgr.getODServerPool(any(), any(), any()))
-                .thenReturn(mockPool);
-
-        assertThrows(ODFailureException.class, () ->
-                odServiceNative.ingestReportToFolder(
-                        "testPortal", "client", "folder",
-                        "Test".getBytes(), "group", "app",
-                         new Hashtable<>()
-                )
+    
+    // NO try block here! Just assign to the field
+    staticMock = Mockito.mockStatic(CMODConnectionManager.class);
+    
+    staticMock.when(() -> CMODConnectionManager.getInstance())
+              .thenAnswer(invocation -> {
+                  CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
+                  Map<String, ODServerPool> poolMap = new HashMap<>();
+                  poolMap.put("testPortal", mockPool);
+                  when(fakeMgr.getODServerPool(any(), any(), any())).thenReturn(mockPool);
+                  when(fakeMgr.getPoolmap()).thenReturn(poolMap);
+                  return fakeMgr;
+              });
+    
+    assertThrows(ODFailureException.class, () -> {
+        odServiceNative.ingestReportToFolder(
+                "testPortal", "client", "folder",
+                "Test".getBytes(), "group", "app",
+                new String[]{}, new Hashtable<>()
         );
+    });
+    
+    verify(mockPool).borrowObject();
+    verify(mockPool).returnObject(mockAbstractODServer);
+}
 
-        verify(mockPool).borrowObject();
-        verify(mockPool).returnObject(mockAbstractODServer);
+private MockedStatic<CMODConnectionManager> staticMock;
+
+@AfterEach
+void tearDown() {
+    if (staticMock != null) {
+        staticMock.close();
+        staticMock = null;
     }
 }

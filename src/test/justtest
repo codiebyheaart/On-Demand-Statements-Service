@@ -1,8 +1,9 @@
+@BeforeEach
 void setUp() {
     try {
         mocks = MockitoAnnotations.openMocks(this);
         
-        // Setup property loader
+        // Setup property loader ONLY
         Properties defaultProps = new Properties();
         defaultProps.put("od.maxHits", "100");
         defaultProps.put("odwek.tracelevel", "2");
@@ -10,13 +11,8 @@ void setUp() {
         defaultProps.put("odNative_closeFolderOnReturnToPool", "false");
         when(mockPropertyLoader.getAppProperties()).thenReturn(defaultProps);
         
-        // Setup CMODConnectionManager mock
-        mockCMODConnectionManager = mock(CMODConnectionManager.class);
-        cmodConnectionManagerMockedStatic = Mockito.mockStatic(CMODConnectionManager.class);
-        cmodConnectionManagerMockedStatic.when(() -> CMODConnectionManager.getInstance())
-                                         .thenReturn(mockCMODConnectionManager);
+        // DON'T create static mock here!
         
-        odServiceNative = new ODServiceNative(mockPoolConfig, mockPropertyLoader);
     } catch (Exception e) {
         throw new RuntimeException(e);
     }
@@ -27,15 +23,40 @@ void tearDown() throws Exception {
     if (mocks != null) {
         mocks.close();
     }
-    if (cmodConnectionManagerMockedStatic != null) {
-        cmodConnectionManagerMockedStatic.close();
-        cmodConnectionManagerMockedStatic = null;
-    }
 }
 
-// Setup pool map
-Map<String, ODServerPool> poolMap = new HashMap<>();
-poolMap.put("testPortal", mockPool);
-when(mockCMODConnectionManager.getPoolmap()).thenReturn(poolMap);
-
-when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
+@Test
+void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws Exception {
+    // Create static mock INSIDE the test with try-with-resources
+    try (MockedStatic<CMODConnectionManager> cmodStatic = Mockito.mockStatic(CMODConnectionManager.class)) {
+        
+        // Setup the mock manager
+        CMODConnectionManager mockManager = mock(CMODConnectionManager.class);
+        cmodStatic.when(() -> CMODConnectionManager.getInstance()).thenReturn(mockManager);
+        
+        // Setup pool map
+        Map<String, ODServerPool> poolMap = new HashMap<>();
+        poolMap.put("testPortal", mockPool);
+        when(mockManager.getPoolmap()).thenReturn(poolMap);
+        
+        // Setup pool behavior
+        when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
+        when(mockAbstractODServer.addReportToFolder(any(), any(byte[].class), any(), any(), any()))
+                .thenThrow(new RuntimeException("DB error"));
+        
+        // Create ODServiceNative AFTER static mock is set up
+        ODServiceNative service = new ODServiceNative(mockPoolConfig, mockPropertyLoader);
+        
+        // Act & Assert
+        assertThrows(ODFailureException.class, () -> {
+            service.ingestReportToFolder(
+                    "testPortal", "client", "folder",
+                    "Test".getBytes(), "group", "app",
+                    new String[]{}, new Hashtable<>()
+            );
+        });
+        
+        verify(mockPool).borrowObject();
+        verify(mockPool).returnObject(mockAbstractODServer);
+    } // Static mock auto-closes here
+}

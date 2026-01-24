@@ -1,34 +1,34 @@
+@Test
 void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws Exception {
     
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
     when(mockAbstractODServer.addReportToFolder(any(), any(byte[].class), any(), any(), any()))
             .thenThrow(new RuntimeException("DB error"));
     
-    // NO try block here! Just assign to the field
-    staticMock = Mockito.mockStatic(CMODConnectionManager.class);
-    
-    staticMock.when(() -> CMODConnectionManager.getInstance())
-              .thenAnswer(invocation -> {
-                  CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
-                  Map<String, ODServerPool> poolMap = new HashMap<>();
-                  poolMap.put("testPortal", mockPool);
-                  when(fakeMgr.getODServerPool(any(), any(), any())).thenReturn(mockPool);
-                  when(fakeMgr.getPoolmap()).thenReturn(poolMap);
-                  return fakeMgr;
-              });
-    
-    assertThrows(ODFailureException.class, () -> {
-        odServiceNative.ingestReportToFolder(
-                "testPortal", "client", "folder",
-                "Test".getBytes(), "group", "app",
-                new String[]{}, new Hashtable<>()
-        );
-    });
-    
-    verify(mockPool).borrowObject();
-    verify(mockPool).returnObject(mockAbstractODServer);
+    // Use try-with-resources - it will auto-close
+    try (MockedStatic<CMODConnectionManager> mockedStatic = Mockito.mockStatic(CMODConnectionManager.class)) {
+        
+        mockedStatic.when(() -> CMODConnectionManager.getInstance())
+                  .thenAnswer(invocation -> {
+                      CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
+                      Map<String, ODServerPool> poolMap = new HashMap<>();
+                      poolMap.put("testPortal", mockPool);
+                      when(fakeMgr.getPoolmap()).thenReturn(poolMap);
+                      return fakeMgr;
+                  });
+        
+        assertThrows(ODFailureException.class, () -> {
+            odServiceNative.ingestReportToFolder(
+                    "testPortal", "client", "folder",
+                    "Test".getBytes(), "group", "app",
+                    new String[]{}, new Hashtable<>()
+            );
+        });
+        
+        verify(mockPool).borrowObject();
+        verify(mockPool).returnObject(mockAbstractODServer);
+    }
 }
-
 private MockedStatic<CMODConnectionManager> staticMock;
 
 @AfterEach

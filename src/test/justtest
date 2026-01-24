@@ -1,58 +1,30 @@
-// Add at class level
-private MockedStatic<CMODConnectionManager> cmodConnectionManagerMockedStatic;
-private CMODConnectionManager mockCMODConnectionManager;
-
-@BeforeEach
-void setUp() {
-    // Setup PropertyLoader
-    Properties props = new Properties();
-    props.put("od.maxHits", "100");
-    props.put("odwk.tracelevel", "2");
-    props.put("odNative_logonAndRetryOnException", "true");
-    props.put("odNative_closeFolderOnReturnToPool", "true");
-    when(mockPropertyLoader.getAppProperties()).thenReturn(props);
-    
-    // Mock CMODConnectionManager ONCE here, like LoadConnectionMappingTest does
-    mockCMODConnectionManager = mock(CMODConnectionManager.class);
-    cmodConnectionManagerMockedStatic = Mockito.mockStatic(CMODConnectionManager.class);
-    cmodConnectionManagerMockedStatic.when(() -> CMODConnectionManager.getInstance())
-                                     .thenReturn(mockCMODConnectionManager);
-    
-    // Create instance
-    odServiceNative = new ODServiceNative(mockPoolConfig, mockPropertyLoader);
-}
-
-@AfterEach
-void tearDown() {
-    // Close static mock after all tests
-    if (cmodConnectionManagerMockedStatic != null) {
-        cmodConnectionManagerMockedStatic.close();
-    }
-}
-
-
 @Test
-void testIngestReportToFolder_WhenAddReportFails_EnsuresPoolCleanup() throws Exception {
-    String portal = "testPortal";
-    byte[] docContent = "Test Content".getBytes();
-    
-    // Setup pool map
-    Map<String, ODServerPool> poolMap = new HashMap<>();
-    poolMap.put(portal, mockPool);
-    when(mockCMODConnectionManager.getPoolmap()).thenReturn(poolMap);
-    
+void testIngestReportToFolder_WhenExceptionOccurs_ReturnsToPool() {
+
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
-    when(mockAbstractODServer.addReportToFolder(
-            anyString(), any(byte[].class), anyString(), anyString(), any(Hashtable.class)
-    )).thenThrow(new RuntimeException("Database error"));
-    
-    assertThrows(ODFailureException.class, () -> {
-        odServiceNative.ingestReportToFolder(
-                portal, "client", "folder", docContent,
-                "group", "app", new String[]{"val1"}, new Hashtable<>()
+    when(mockAbstractODServer.addReportToFolder(any(), any(), any(), any(), any()))
+        .thenThrow(new RuntimeException("DB error"));
+
+    try (MockedStatic<CMODConnectionManager> mockedStatic =
+             Mockito.mockStatic(CMODConnectionManager.class)) {
+
+        CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
+        mockedStatic.when(CMODConnectionManager::getInstance)
+            .thenReturn(fakeMgr);
+
+        Map<String, ODServerPool> poolMap = new HashMap<>();
+        poolMap.put("testPortal", mockPool);
+        when(fakeMgr.getPoolmap()).thenReturn(poolMap);
+
+        assertThrows(ODFailureException.class, () ->
+            odServiceNative.ingestReportToFolder(
+                "testPortal", "client", "folder",
+                "Test".getBytes(), "group", "app",
+                new HashMap<>(), new Hashtable<>()
+            )
         );
-    });
-    
-    verify(mockPool).borrowObject();
-    verify(mockPool).returnObject(mockAbstractODServer);
+
+        verify(mockPool).borrowObject();
+        verify(mockPool).returnObject(mockAbstractODServer);
+    }
 }

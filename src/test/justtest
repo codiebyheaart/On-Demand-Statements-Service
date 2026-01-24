@@ -1,12 +1,20 @@
 @Test
 void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws Exception {
 
+    // Arrange
     when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
-    when(mockAbstractODServer.addReportToFolder(any(), any(byte[].class), any(), any(), any()))
-        .thenThrow(new RuntimeException("DB error"));
+    when(mockAbstractODServer.addReportToFolder(
+            any(),
+            any(byte[].class),
+            any(),
+            any(),
+            any()
+    )).thenThrow(new RuntimeException("DB error"));
 
-    try (MockedStatic<CMODConnectionManager> mockedStatic =
-             Mockito.mockStatic(CMODConnectionManager.class)) {
+    try (
+        MockedStatic<CMODConnectionManager> mockedStatic =
+            Mockito.mockStatic(CMODConnectionManager.class)
+    ) {
 
         CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
 
@@ -17,8 +25,10 @@ void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws
         poolMap.put("testPortal", mockPool);
         when(fakeMgr.getPoolmap()).thenReturn(poolMap);
 
-        assertThrows(ODFailureException.class, () ->
-            odServiceNative.ingestReportToFolder(
+        // Act + Assert
+        assertThrows(
+            ODFailureException.class,
+            () -> odServiceNative.ingestReportToFolder(
                 "testPortal",
                 "client",
                 "folder",
@@ -30,6 +40,7 @@ void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws
             )
         );
 
+        // Verify pool cleanup
         verify(mockPool).borrowObject();
         verify(mockPool).returnObject(mockAbstractODServer);
     }

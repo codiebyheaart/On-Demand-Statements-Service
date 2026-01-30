@@ -1,34 +1,37 @@
 @Test
-void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() {
-
-    CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
-
-    CMOD_STATIC.when(CMODConnectionManager::getInstance)
-               .thenReturn(fakeMgr);
-
-    when(mockPool.borrowObject()).thenReturn(mockAbstractODServer);
+void testIngestReportToFolder_WhenAddThrowsException_EnsuresPoolCleanup() throws Exception {
+    when(mockPool.borrowObject())
+        .thenReturn(mockAbstractODServer);
 
     when(mockAbstractODServer.addReportToFolder(
             any(), any(byte[].class), any(), any(), any()
     )).thenThrow(new RuntimeException("DB error"));
 
-    Map<String, ODServerPool> poolMap = new HashMap<>();
-    poolMap.put("testPortal", mockPool);
-    when(fakeMgr.getPoolmap()).thenReturn(poolMap);
+    try (MockedStatic<CMODConnectionManager> mockedStatic =
+             Mockito.mockStatic(CMODConnectionManager.class)) {
 
-    assertThrows(
-        ODFailureException.class,
-        () -> odServiceNative.ingestReportToFolder(
-            "testPortal",
-            "client",
-            "folder",
-            "Test".getBytes(),
-            "group",
-            "app",
-            new HashMap<>(),
-            new Hashtable<>()
-        )
-    );
+        CMODConnectionManager fakeMgr = mock(CMODConnectionManager.class);
+        mockedStatic.when(CMODConnectionManager::getInstance)
+                    .thenReturn(fakeMgr);
+
+        Map<String, ODServerPool> poolMap = new HashMap<>();
+        poolMap.put("testPortal", mockPool);
+        when(fakeMgr.getPoolmap()).thenReturn(poolMap);
+
+        assertThrows(
+            ODFailureException.class,
+            () -> odServiceNative.ingestReportToFolder(
+                "testPortal",
+                "client",
+                "folder",
+                "Test".getBytes(),
+                "group",
+                "app",
+                new HashMap<>(),
+                new Hashtable<>()
+            )
+        );
+    }
 
     verify(mockPool).returnObject(mockAbstractODServer);
 }
